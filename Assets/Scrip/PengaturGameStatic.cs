@@ -6,15 +6,30 @@ using UnityEngine.UI;
 public class PengaturGameStatic : MonoBehaviour
 {
     static Text skorTeks;
-    static int skorSkrg=0;
-    // Start is called before the first frame update
-    void Start(){
-        skorTeks = GameObject.Find("UISkor").GetComponent<Text>(); //cari si gameobject UISkor
-        skorTeks.text="Score: "+skorSkrg.ToString(); //set skor awal mulai game
+    static int skorSkrg = 0;
+
+    void Start()
+    {
+        GameObject skorObj = GameObject.Find("UISkor");
+        if (skorObj != null)
+        {
+            skorTeks = skorObj.GetComponent<Text>();
+            skorTeks.text = "Score: " + skorSkrg.ToString();
+        }
     }
 
-    public static void TambahSkor(int skornya){
-        skorSkrg+=skornya; //tambahkan skor
-        skorTeks.text="Score: "+skorSkrg.ToString(); //update textnya
+    public static void TambahSkor(int skornya)
+    {
+        skorSkrg += skornya;
+        if (skorTeks != null)
+        {
+            skorTeks.text = "Score: " + skorSkrg.ToString();
+        }
+    }
+
+    // Fungsi untuk mereset skor kembali ke 0 saat player mati
+    public static void ResetSkor()
+    {
+        skorSkrg = 0;
     }
 }

@@ -5,31 +5,49 @@ using UnityEngine;
 public class Explode : MonoBehaviour
 {
     public BodyPart bodyPart;
-	public int totalParts;
-    void OnTriggerEnter2D(Collider2D target){
-		if (target.gameObject.tag == "Deadly") { //kalo tabrakan onTrigger sama deadly
-			OnExplode();
-		}
-	}
+    public int totalParts;
 
-	void OnCollisionEnter2D(Collision2D target){
-		if (target.gameObject.tag == "Deadly") { //kalo tabrakan onCollision sama deadly
-			OnExplode();
-		}		
-	}
+    void OnTriggerEnter2D(Collider2D target)
+    {
+        if (target.gameObject.tag == "Deadly")
+        {
+            OnExplode();
+        }
+    }
 
-	public void OnExplode(){
-		Destroy (gameObject); //destroy player
-		
-		var t = transform; //ambil posisi player
+    void OnCollisionEnter2D(Collision2D target)
+    {
+        if (target.gameObject.tag == "Deadly")
+        {
+            OnExplode();
+        }
+    }
 
-		for (int i = 0; i < totalParts; i++) { //loop sebanyak totalparts yg diisi
-			BodyPart clone = Instantiate(bodyPart, t.position, Quaternion.identity) as BodyPart; //buat objek dari prefab pada posisi dan rotasi pemain			
-		}
-		
-		GameObject go = new GameObject ("ClickToContinue"); //bikin gameobject bernama ClickToContinue
-		go.AddComponent<ClickToContinue> (); //kasih script ClickToContinue
-		go.AddComponent<DisplayRestartText> (); //kasih script DisplayRestartText
-		
-	}
+    public void OnExplode()
+    {
+        // Reset skor saat player mati
+        PengaturGameStatic.ResetSkor();
+
+        var t = transform; // Ambil posisi player sebelum dihancurkan
+
+        // Pastikan bodyPart tidak kosong agar tidak error
+        if (bodyPart != null)
+        {
+            for (int i = 0; i < totalParts; i++)
+            {
+                BodyPart clone = Instantiate(bodyPart, t.position, Quaternion.identity) as BodyPart;
+            }
+        }
+        else
+        {
+            Debug.LogWarning("BodyPart prefab belum di-assign di Inspector Player!");
+        }
+
+        // Hancurkan player setelah pecahan dibuat
+        Destroy(gameObject);
+
+        GameObject go = new GameObject("ClickToContinue");
+        go.AddComponent<ClickToContinue>();
+        go.AddComponent<DisplayRestartText>();
+    }
 }

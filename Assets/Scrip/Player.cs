@@ -183,7 +183,7 @@ public class Player : MonoBehaviour
 
     void OnDestroy()
     {
-        // Jika player dihancurkan, lepas Main Camera agar tidak ikut hancur
+        // Jika player dihancurkan, pastikan Main Camera dilepas dari player agar tidak ikut hancur
         if (mainCamera != null)
         {
             mainCamera.transform.parent = null;
