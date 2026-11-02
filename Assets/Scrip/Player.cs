@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
-using UnityEngine.SceneManagement; // Dibutuhkan untuk reload/restart scene
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
@@ -22,34 +23,39 @@ public class Player : MonoBehaviour
     private GameObject mainCamera;
 
     [Header("Game Clear Setting")]
-    public GameObject gameClearText; // Drag UI Text/Panel "Game Clear" ke sini lewat Inspector
+    public GameObject gameClearText;
     private bool isGameCleared = false;
+
+    [Header("Timer Setting")]
+    public Text timerText;
+    // Menggunakan static agar waktu tidak mereset saat player mati dan scene reload
+    private static float elapsedTime = 0f;
+    private static bool timerIsRunning = true;
 
     void Start()
     {
         controller = GetComponent<PlayerController>();
         animator = GetComponent<Animator>();
 
-        // Pastikan tulisan Game Clear tersembunyi saat game dimulai
         if (gameClearText != null)
         {
             gameClearText.SetActive(false);
         }
 
-        // Cari dan simpan referensi ke Main Camera
         mainCamera = Camera.main?.gameObject;
 
-        // Pastikan kamera tidak dihancurkan saat scene berganti atau player dihancurkan
         if (mainCamera != null)
         {
             DontDestroyOnLoad(mainCamera);
         }
+
+        timerIsRunning = true;
     }
 
     void PlayLeftFootSound()
     {
-        if (leftFootSound) // jika file suaranya tidak kosong
-            AudioSource.PlayClipAtPoint(leftFootSound, transform.position); // play pada posisi player
+        if (leftFootSound)
+            AudioSource.PlayClipAtPoint(leftFootSound, transform.position);
     }
 
     void PlayRightFootSound()
@@ -59,14 +65,14 @@ public class Player : MonoBehaviour
     }
 
     void OnCollisionEnter2D(Collision2D target)
-    { // bunyi ketika mendarat/injak tanah
+    {
         if (!standing)
-        { // lagi terbang
-            var absVelX = Mathf.Abs(GetComponent<Rigidbody2D>().velocity.x); // ambil posisi
+        {
+            var absVelX = Mathf.Abs(GetComponent<Rigidbody2D>().velocity.x);
             var absVelY = Mathf.Abs(GetComponent<Rigidbody2D>().velocity.y);
 
             if (absVelX <= .1f || absVelY <= .1f)
-            { // gerakan x&y kecil, artinya sdg mendarat
+            {
                 if (thudSound)
                     AudioSource.PlayClipAtPoint(thudSound, transform.position);
             }
@@ -75,41 +81,43 @@ public class Player : MonoBehaviour
 
     void PlayRocketSound()
     {
-        if (!rocketSound || GameObject.Find("RocketSound")) // jika sudah ada gameobjectnya, tidak dibunyikan lagi
-            return; // langsung return
+        if (!rocketSound || GameObject.Find("RocketSound"))
+            return;
 
-        GameObject go = new GameObject("RocketSound"); // buat gameobject
-        AudioSource aSrc = go.AddComponent<AudioSource>(); // masukkan audiosource
-        aSrc.clip = rocketSound; // masukkan clip
-        aSrc.volume = 0.7f; // set volume
+        GameObject go = new GameObject("RocketSound");
+        AudioSource aSrc = go.AddComponent<AudioSource>();
+        aSrc.clip = rocketSound;
+        aSrc.volume = 0.7f;
         aSrc.Play();
 
-        Destroy(go, rocketSound.length); // destroy setelah suara selesai dibunyikan		
+        Destroy(go, rocketSound.length);
     }
 
-    // Update is called once per frame
     void Update()
     {
-        // Jika game sudah tamat, cek apakah pemain menekan tombol atau sentuh layar untuk restart
+        if (timerIsRunning)
+        {
+            elapsedTime += Time.deltaTime;
+            UpdateTimerDisplay(elapsedTime);
+        }
+
         if (isGameCleared)
         {
             if (Input.anyKeyDown || (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began))
             {
                 RestartGame();
             }
-            return; // Menghentikan update player jika game sudah clear
+            return;
         }
 
-        // menetralkan nilai gerakan
         var forceX = 0f;
         var forceY = 0f;
 
-        // ngecek kecepatan sekarang
         var absVelX = Mathf.Abs(GetComponent<Rigidbody2D>().velocity.x);
         var absVelY = Mathf.Abs(GetComponent<Rigidbody2D>().velocity.y);
 
         if (absVelY < .2f)
-        { // cek lagi terbang atau tidak
+        {
             standing = true;
         }
         else
@@ -118,39 +126,47 @@ public class Player : MonoBehaviour
         }
 
         if (controller.moving.x != 0)
-        { // cek kontrol gerak kiri-kanan
+        {
             if (absVelX < maxVelocity.x)
-            { // pembatas agar tidak lebih dari kecepatan maks
-                forceX = standing ? speed * controller.moving.x : (speed * controller.moving.x * airSpeedMultiplier); // jika di udara akan ada perkalian dgn airspeed, yg membuatnya lbh lamban
-                transform.localScale = new Vector3(forceX > 0 ? 1 : -1, 1, 1); // flip gambar
+            {
+                forceX = standing ? speed * controller.moving.x : (speed * controller.moving.x * airSpeedMultiplier);
+                transform.localScale = new Vector3(forceX > 0 ? 1 : -1, 1, 1);
             }
-            animator.SetInteger("AnimState", 1); // animasi jalan
+            animator.SetInteger("AnimState", 1);
         }
         else
         {
-            animator.SetInteger("AnimState", 0); // animasi stop
+            animator.SetInteger("AnimState", 0);
         }
 
         if (controller.moving.y > 0)
-        { // cek kontrol gerak ke atas
+        {
             PlayRocketSound();
-            if (absVelY < maxVelocity.y) // pembatas kecepatan terbang
+            if (absVelY < maxVelocity.y)
                 forceY = jetSpeed * controller.moving.y;
-            animator.SetInteger("AnimState", 2); // animasi jet terbang ada apinya
+            animator.SetInteger("AnimState", 2);
         }
         else if (absVelY > 0)
         {
-            animator.SetInteger("AnimState", 3); // animasi jet tidak ada apinya
+            animator.SetInteger("AnimState", 3);
         }
 
-        GetComponent<Rigidbody2D>().AddForce(new Vector2(forceX, forceY)); // melakukan gerakan berdasarkan nilai forceX & forceY yg sudah dihitung di atas
+        GetComponent<Rigidbody2D>().AddForce(new Vector2(forceX, forceY));
     }
 
-    // Fungsi mendeteksi objek Game Clear (Trigger)
+    void UpdateTimerDisplay(float timeToDisplay)
+    {
+        if (timerText != null)
+        {
+            float minutes = Mathf.FloorToInt(timeToDisplay / 60);
+            float seconds = Mathf.FloorToInt(timeToDisplay % 60);
+            timerText.text = string.Format("Time: {0:00}:{1:00}", minutes, seconds);
+        }
+    }
+
     private void OnTriggerEnter2D(Collider2D target)
     {
-        // Cek apakah objek yang disentuh memiliki tag "Finish" atau nama tertentu
-        // Kamu bisa ubah "Finish" sesuai keinginan atau cek berdasarkan komponen
+        // Jika menyentuh Finish / Game Clear
         if (target.CompareTag("Finish") || target.name.Contains("ClearObject"))
         {
             ClearGame();
@@ -160,30 +176,32 @@ public class Player : MonoBehaviour
     void ClearGame()
     {
         isGameCleared = true;
+        timerIsRunning = false;
 
-        // Tampilkan teks Game Clear
+        // ** TIMER DIRESET KE 0 KETIKA BERHASIL (GAME CLEAR) **
+        elapsedTime = 0f;
+
+        // Reset skor juga saat menang
+        PengaturGameStatic.ResetSkor();
+
         if (gameClearText != null)
         {
             gameClearText.SetActive(true);
         }
 
-        // Hentikan pergerakan game/waktu sementara
         Time.timeScale = 0f;
     }
 
     void RestartGame()
     {
-        // Kembalikan waktu ke normal sebelum merestart scene
         Time.timeScale = 1f;
 
-        // Load ulang scene yang aktif saat ini
         Scene currentScene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(currentScene.name);
     }
 
     void OnDestroy()
     {
-        // Jika player dihancurkan, pastikan Main Camera dilepas dari player agar tidak ikut hancur
         if (mainCamera != null)
         {
             mainCamera.transform.parent = null;
